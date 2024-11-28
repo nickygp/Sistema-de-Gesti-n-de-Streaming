@@ -1,6 +1,6 @@
 /*
 @autor: Nicolas Garcia
-@fecha 02/11/2024
+@fecha 28/11/2024
 @descripcion: Aprendizaje Autonomo 3
 */
 
