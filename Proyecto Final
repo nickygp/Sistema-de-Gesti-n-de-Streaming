@@ -1,0 +1,170 @@
+/*
+@autor: Nicolas Garcia
+@fecha 10/12/2024
+@descripción: Proyecto Final
+*/
+package main
+
+import (
+	"database/sql"
+	"html/template"
+	"log"
+	"net/http"
+
+	_ "modernc.org/sqlite"
+)
+
+// Estructuras
+type User struct {
+	ID       int
+	Username string
+}
+
+type Movie struct {
+	ID    int
+	Title string
+	Genre string
+}
+
+// Variables globales
+var db *sql.DB
+var templates *template.Template
+
+// Función principal
+func main() {
+	var err error
+
+	// Conexión a la base de datos
+	db, err = sql.Open("sqlite", "./streaming.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	// Inicialización de la base de datos
+	initDB()
+
+	// Carga de templates
+	templates = template.Must(template.ParseGlob("templates/*.html"))
+
+	// Rutas
+	http.HandleFunc("/", homeHandler)
+	http.HandleFunc("/users", usersHandler)
+	http.HandleFunc("/movies", moviesHandler)
+	http.HandleFunc("/add-user", addUserHandler)
+	http.HandleFunc("/add-movie", addMovieHandler)
+
+	// Inicio del servidor
+	log.Println("Servidor corriendo en http://localhost:8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+// añadir usuarios
+func addUserHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		// Obtén los datos del formulario
+		username := r.FormValue("username")
+
+		// Inserta en la base de datos
+		_, err := db.Exec("INSERT INTO users (username) VALUES (?)", username)
+		if err != nil {
+			http.Error(w, "Error al agregar usuario", http.StatusInternalServerError)
+			return
+		}
+
+		// Redirige a la lista de usuarios
+		http.Redirect(w, r, "/users", http.StatusSeeOther)
+		return
+	}
+
+	// Renderiza el formulario para añadir usuarios
+	templates.ExecuteTemplate(w, "add_user.html", nil)
+}
+
+// Funciones de manejo de rutas
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	templates.ExecuteTemplate(w, "home.html", nil)
+}
+
+func usersHandler(w http.ResponseWriter, r *http.Request) {
+	rows, err := db.Query("SELECT id, username FROM users")
+	if err != nil {
+		http.Error(w, "Error al cargar usuarios", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var user User
+		err = rows.Scan(&user.ID, &user.Username)
+		if err != nil {
+			http.Error(w, "Error al procesar usuarios", http.StatusInternalServerError)
+			return
+		}
+		users = append(users, user)
+	}
+
+	templates.ExecuteTemplate(w, "users.html", users)
+}
+
+func moviesHandler(w http.ResponseWriter, r *http.Request) {
+	rows, err := db.Query("SELECT id, title, genre FROM movies")
+	if err != nil {
+		http.Error(w, "Error al cargar películas", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var movies []Movie
+	for rows.Next() {
+		var movie Movie
+		err = rows.Scan(&movie.ID, &movie.Title, &movie.Genre)
+		if err != nil {
+			http.Error(w, "Error al procesar películas", http.StatusInternalServerError)
+			return
+		}
+		movies = append(movies, movie)
+	}
+
+	templates.ExecuteTemplate(w, "movies.html", movies)
+}
+
+// añadir película
+func addMovieHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		title := r.FormValue("title")
+		genre := r.FormValue("genre")
+
+		_, err := db.Exec("INSERT INTO movies (title, genre) VALUES (?, ?)", title, genre)
+		if err != nil {
+			http.Error(w, "Error al agregar película", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/movies", http.StatusSeeOther)
+		return
+	}
+
+	templates.ExecuteTemplate(w, "add_movie.html", nil)
+
+	// Renderiza el formulario para añadir usuarios
+	templates.ExecuteTemplate(w, "add_user.html", nil)
+}
+
+// Función para inicializar la base de datos
+func initDB() {
+	_, err := db.Exec(`
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT NOT NULL
+	);
+	CREATE TABLE IF NOT EXISTS movies (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		title TEXT NOT NULL,
+		genre TEXT NOT NULL
+	);`)
+	if err != nil {
+		log.Fatal("Error al inicializar la base de datos:", err)
+
+	}
+}
