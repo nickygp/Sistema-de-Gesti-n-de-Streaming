@@ -7,3 +7,4 @@ mayor claridad de código y consigo mejor producto final.
 
 A la fecha de presentar mi proyecto, he medjorado e impulsado el codigo para contar con un resultado que funcione mediante una https y almacene sus 
 datos en una base de datos de SQL.
+Cabe resaltar que este programa te permite ingresar en una plataforma de streaming, donde podrás ingresar usuarios, películas y quedrán almacenas, cada una de ellas con su respetivo id y categoría.
